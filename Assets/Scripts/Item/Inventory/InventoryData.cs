@@ -5,16 +5,10 @@ using StoreyGame.Items;
 
 namespace KenScripts.Game.Items
 {
-    public enum ItemType
-    {
-        Materials,
-        Consumables,
-        Armor,
-        Weapon,
-        KeyItems,
-        Clothes
-    }
-    public class InventoryData : MonoBehaviour
+
+
+    [CreateAssetMenu(fileName = "Inventory Data", menuName = "Data/Inventory")]
+    public class InventoryData : ScriptableObject
     {
         public struct ItemTypeStackData
         {

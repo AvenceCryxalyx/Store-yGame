@@ -5,7 +5,7 @@ using UnityEngine.Animations;
 using StoreyGame.Animations;
 using System.Linq;
 
-[RequireComponent(typeof(Animator), typeof(CharacterController))]
+[RequireComponent(typeof(Animator))]
 public class Avatar : MonoBehaviour
 {
     [System.Serializable]
@@ -24,8 +24,6 @@ public class Avatar : MonoBehaviour
 
     public string Id { get; private set; }
 
-    private CharacterController m_controller;
-
     private Animator m_animator;
     private RuntimeAnimatorController m_defaultAnimatorController;
 
@@ -39,8 +37,6 @@ public class Avatar : MonoBehaviour
     public AvatarAnimData[] AnimDatas;
 
     private Dictionary<Enums.Bodypart, AvatarAnimData> m_avatarDatas = new Dictionary<Enums.Bodypart, AvatarAnimData>();
-
-    public Vector3 Velocity { get { return m_controller.velocity; } }
 
     private void Start()
     {
@@ -81,7 +77,7 @@ public class Avatar : MonoBehaviour
 
     public void Move(Vector3 velocity)
     {
-        m_controller.Move(velocity);
+        transform.position += velocity;
     }
 
     public void SetAnimatorController(RuntimeAnimatorController controller)
@@ -123,5 +119,18 @@ public class Avatar : MonoBehaviour
         }
         m_avatarDatas[data.Part].SetData(data);
         UpdateAnimations();
+    }
+
+    public void SetAnimatorParameter(string id, int value)
+    {
+        m_animator.SetInteger(id, value);
+    }
+    public void SetAnimatorParameter(string id, float value)
+    {
+        m_animator.SetFloat(id, value);
+    }
+    public void SetAnimatorParameter(string id, bool value)
+    {
+        m_animator.SetBool(id, value);
     }
 }

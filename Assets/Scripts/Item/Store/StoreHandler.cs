@@ -1,18 +1,30 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
-public class StoreHandler : MonoBehaviour
+namespace StoreyGame.Items.Store
 {
-    // Start is called before the first frame update
-    void Start()
+    public class OnInteractStore : UnityEvent<StoreHandler> { }
+    public class OnAccessStore : UnityEvent<StoreHandler> { }
+    public class StoreHandler : MonoBehaviour, IInteractable
     {
-        
-    }
+        public OnAccessStore EvtAccessStore = new OnAccessStore();
+        public OnInteractStore EvtInteractStore = new OnInteractStore();
+        public string Id;
 
-    // Update is called once per frame
-    void Update()
-    {
-        
+        [SerializeField] 
+        private StoreData data;
+
+        public void Interact()
+        {
+            EvtInteractStore.Invoke(this);
+        }
+
+        public void AccessStore()
+        {
+
+            EvtAccessStore.Invoke(this);
+        }
     }
 }

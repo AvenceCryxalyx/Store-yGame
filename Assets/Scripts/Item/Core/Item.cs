@@ -13,8 +13,9 @@ namespace StoreyGame.Items
         public ItemUsed EvtOnUse = new ItemUsed();
 
         public string Id { get { return m_data.Id; } }
+        public string Name { get { return m_data.Name; } }
         public string Description { get { return m_data.Description; } }
-        public float Price { get { return m_data.Price; } }
+        public float BasePrice { get { return m_data.BasePrice; } }
         public ItemType Type { get { return m_data.Type; } }
 
         private ItemData m_data;

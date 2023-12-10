@@ -4,6 +4,11 @@ using UnityEngine;
 
 public static class Enums
 {
+    public enum Features
+    {
+        Crafting,
+        Store
+    }
     public enum Bodypart
     {
         Body,

@@ -17,10 +17,10 @@ namespace KenScripts.Game.Items
 
     public class SlotSpace
     {
-        public SlotSpace(Item item, int stacks, int maxStacks)
+        public SlotSpace(int stacks, int maxStacks)
         {
-            Item = item;
             Stacks = stacks;
+            MaxStacks = maxStacks;
         }
 
         public Item Item { get; private set; }
@@ -64,20 +64,14 @@ namespace KenScripts.Game.Items
 
     public class Inventory : MonoBehaviour//, IJsonSerializable
     {
-        public struct SlotKey
-        {
-            public string ItemId;
-            public int index;
-        }
-
-        public IEnumerable<SlotSpace> Items { get { return items.Values; } }
+        public IEnumerable<Item> Items { get { return m_items.Keys; } }
         public ItemAcquiring EvtItemAcquiring = new ItemAcquiring();
         public ItemAcquired EvtItemAcquired = new ItemAcquired();
         public ItemRemoved EvtItemRemoved = new ItemRemoved();
         public ItemUsed EvtItemUsed = new ItemUsed();
         public ItemOverflowed EvtItemOverflow = new ItemOverflowed();
 
-        protected Dictionary<SlotKey, SlotSpace> items = new Dictionary<SlotKey, SlotSpace>();
+        protected Dictionary<Item, SlotSpace> m_items = new Dictionary<Item, SlotSpace>();
         private InventoryData m_data;
 
         [SerializeField]
@@ -107,7 +101,7 @@ namespace KenScripts.Game.Items
 
         public bool IsItemAvailable(string id)
         {
-            return items.Any(s => s.Key.ItemId == id);
+            return m_items.Any(s => s.Key.Id == id);
         }
 
         public int GetAvailableAmount(string id)
@@ -126,7 +120,7 @@ namespace KenScripts.Game.Items
         int GetAllSlotAmounts(string id)
         {
             int total = 0;
-            List<SlotSpace> amounts = items.Values.Where(i => i.Item.Id == id).ToList();
+            List<SlotSpace> amounts = m_items.Values.Where(i => i.Item.Id == id).ToList();
             foreach (SlotSpace s in amounts)
             {
                 total += s.Stacks;
@@ -134,21 +128,24 @@ namespace KenScripts.Game.Items
             return total;
         }
 
-        public void UseItem(SlotKey key, GameObject target = null)
+        public void UseItem(Item item, GameObject target = null)
         {
-            if (!items.Keys.Contains(key))
+            if (!m_items.ContainsKey(item))
             {
                 Debug.LogError("Key not found in items.");
                 return;
             }
 
-            SlotSpace requestedItem = items[key];
+            SlotSpace requestedItem = m_items[item];
             requestedItem.Item.Use();
 
             EvtItemUsed.Invoke(requestedItem.Item, 1);
 
             requestedItem.ReduceStack(1);
-            if (requestedItem.Stacks <= 0) items.Remove(key);
+            if (requestedItem.Stacks <= 0)
+            {
+                m_items.Remove(item);
+            }
         }
 
         public void AddItem(Item item, int amount)
@@ -174,44 +171,71 @@ namespace KenScripts.Game.Items
 
             bool added = false;
             EvtItemAcquiring.Invoke(item, amount);
-            SlotKey key;
-
-            if (!items.Keys.Any(x => x.ItemId == item.Id))
+            if (canHaveMultipleStacks)
             {
-                Debug.LogError(string.Format("Inventory key with item id [%s] not found", item.Id));
-                key.ItemId = item.Id;
-                key.index = 0;
-            }
-            else
-            {
-                key = items.Keys.Where(x => x.ItemId == item.Id)
-                                             .OrderByDescending(x => x.index).ToList()[0];
-            }
-
-            if (!items.ContainsKey(key))
-            {
-                int maxStack = 0;
-                if (GetTypeLimit(item) != 0)
+                if (!m_items.Keys.Any(x => x.Id == item.Id))
                 {
-                    maxStack = GetTypeLimit(item);
-                }
-                else if (GetItemLimit(item) != 0)
-                {
-
+                    Debug.LogError(string.Format("Inventory key with item id [%s] not found", item.Id));
                 }
                 else
                 {
-                    maxStack = InventoryData.DEFAULT_STACK_AMOUNT;
+                    item = m_items.Keys.Where(x => x.Id == item.Id).ToList()[0];
                 }
-                items.Add(key, new SlotSpace(item, amount, maxStack));
-                added = true;
+
+                if (!m_items.ContainsKey(item))
+                {
+                    int maxStack = 0;
+                    if (GetTypeLimit(item) != 0)
+                    {
+                        maxStack = GetTypeLimit(item);
+                    }
+                    else if (GetItemLimit(item) > 0)
+                    {
+                        maxStack = InventoryData.DEFAULT_STACK_AMOUNT;
+                    }
+                    else
+                    {
+                        maxStack = InventoryData.DEFAULT_STACK_AMOUNT;
+                    }
+                    m_items.Add(item, new SlotSpace(amount, maxStack));
+                    added = true;
 #if UNITY_EDITOR
-                Debug.LogWarning("New Item Added");
+                    Debug.LogWarning("New Item Added");
 #endif
+                }
+                else
+                {
+                    int remaining = m_items[item].AddStack(amount);
+                    added = true;
+                    if (remaining == 0)
+                    {
+#if UNITY_EDITOR
+                        Debug.LogWarning(string.Format("Stack Added: %s", amount));
+#endif
+                    }
+                    else
+                    {
+                        HandleStackOverflow(item, remaining, m_items[item].MaxStacks);
+                    }
+                }
             }
             else
             {
-                int remaining = items[key].AddStack(amount);
+                if (!m_items.ContainsKey(item))
+                {
+                    int maxStack = 0;
+                    int typeLimit = GetTypeLimit(item);
+                    if (typeLimit > 0)
+                    {
+                        maxStack = typeLimit;
+                    }
+                    else
+                    {
+                        maxStack = InventoryData.DEFAULT_STACK_AMOUNT;
+                    }
+                    m_items.Add(item, new SlotSpace(0, maxStack));
+                }
+                int remaining = m_items[item].AddStack(amount);
                 if (remaining == 0)
                 {
 #if UNITY_EDITOR
@@ -220,7 +244,7 @@ namespace KenScripts.Game.Items
                 }
                 else
                 {
-                    HandleStackOverflow(key, item,remaining, items[key].MaxStacks);
+                    HandleStackOverflow(item, remaining, m_items[item].MaxStacks);
                 }
             }
             EvtItemAcquired.Invoke(item, added);
@@ -233,20 +257,15 @@ namespace KenScripts.Game.Items
         /// <param name="amount"></param>
         public void RemoveItem(Item item, int amount)
         {
-            SlotKey key;
+            Assert.IsTrue(m_items.ContainsKey(item), "Item not found in inventory");
 
-            key = items.Keys.Where(x => x.ItemId == item.Id)
-                            .OrderByDescending(x => x.index).ToList()[0];
-
-            Assert.IsTrue(items.ContainsKey(key), "Item not found in inventory");
-
-            SlotSpace itemSlot = (SlotSpace)items[key];
+            SlotSpace itemSlot = m_items[item];
 
             Assert.IsTrue(amount <= itemSlot.Stacks, "Amount to be removed is greater than amount in inventory");
 
             if (itemSlot.Stacks == amount)
             {
-                items.Remove(key);
+                m_items.Remove(item);
             }
             else
             {
@@ -259,93 +278,107 @@ namespace KenScripts.Game.Items
                 }
                 else if (remaining > 0)
                 {
-                    HandleAmountDeficiency(key, item, remaining);
+                    HandleAmountDeficiency(item, remaining);
                 }
             }
 
             EvtItemRemoved.Invoke(item, amount);
         }
 
-        /// <summary>
-        /// Remove method for stackable items.
-        /// </summary>
-        /// <param name="id"></param>
-        /// <param name="amount"></param>
-        public void RemoveItem(string id, int amount)
-        {
-            SlotKey key;
+//        /// <summary>
+//        /// Remove method for stackable items.
+//        /// </summary>
+//        /// <param name="id"></param>
+//        /// <param name="amount"></param>
+//        public void RemoveItem(Item item, int amount)
+//        {
+//            Assert.IsTrue(m_items.ContainsKey(item), "Item not found in inventory");
 
-            key = items.Keys.Where(x => x.ItemId == id)
-                            .OrderByDescending(x => x.index).ToList()[0];
+//            if (canHaveMultipleStacks)
+//            {
+//                SlotSpace space = m_items[item];
 
-            Assert.IsTrue(items.ContainsKey(key), "Item not found in inventory");
+//                SlotSpace itemSlot = (SlotSpace)m_items[key];
 
-            SlotSpace itemSlot = (SlotSpace)items[key];
+//                Assert.IsTrue(amount <= itemSlot.Stacks, "Amount to be removed is greater than amount in inventory");
 
-            Assert.IsTrue(amount <= itemSlot.Stacks, "Amount to be removed is greater than amount in inventory");
+//                if (itemSlot.Stacks == amount)
+//                {
+//                    m_items.Remove(key);
+//                }
+//                else
+//                {
+//                    int remaining = itemSlot.ReduceStack(amount);
+//                    if (remaining == 0)
+//                    {
+//#if UNITY_EDITOR
+//                        Debug.LogWarning(string.Format("Stack Reduced: %s", amount));
+//#endif
+//                    }
+//                    else if (remaining > 0)
+//                    {
+//                        HandleAmountDeficiency(key, m_items[key].Item, remaining);
+//                    }
+//                }
+//            }
+//            else
+//            {
 
-            if (itemSlot.Stacks == amount)
-            {
-                items.Remove(key);
-            }
-            else
-            {
-                int remaining = itemSlot.ReduceStack(amount);
-                if (remaining == 0)
-                {
-#if UNITY_EDITOR
-                    Debug.LogWarning(string.Format("Stack Reduced: %s", amount));
-#endif
-                }
-                else if (remaining > 0)
-                {
-                    HandleAmountDeficiency(key, items[key].Item, remaining);
-                }
-            }
+//            }
 
-            EvtItemRemoved.Invoke(items[key].Item, amount);
-        }
+//            EvtItemRemoved.Invoke(m_items[key].Item, amount);
+//        }
 
-        void HandleStackOverflow(SlotKey key, Item item, int amount, int maxStack)
-        {
-            int remaining = amount;
-            if (canHaveMultipleStacks)
-            {
-                while (remaining != 0)
-                {
-                    SlotKey newKey;
-                    newKey.ItemId = item.Id;
-                    newKey.index = key.index + 1;
-                    items.Add(newKey, new SlotSpace(item, 0, maxStack));
-                    remaining = items[newKey].AddStack(remaining);
-                    key = newKey;
-                }
-            }
-            else
-            {
-                EvtItemOverflow.Invoke(item, amount);
-            }
-        }
-
-        void HandleAmountDeficiency(SlotKey key, Item item, int amount)
+        void HandleStackOverflow(Item item, int amount, int maxStack)
         {
             int remaining = amount;
             if (canHaveMultipleStacks)
             {
-                while (remaining != 0)
+                Item newItem = Instantiate(item, transform);
+                if (m_items.Values.Count <= inventorySlotSize)
                 {
-                    if (key.index == 0)
+                    m_items.Add(newItem, new SlotSpace(0, maxStack));
+                    remaining = m_items[item].AddStack(remaining);
+                }
+                if(remaining > 0)
+                {
+                    HandleStackOverflow(newItem, remaining, maxStack);
+                }
+            }
+            if(remaining > 0) 
+            { 
+                EvtItemOverflow.Invoke(item, remaining);
+            }
+        }
+
+        void HandleAmountDeficiency(Item item, int amount)
+        {
+            int remaining = amount;
+            if (canHaveMultipleStacks)
+            {
+                List<Item> items = m_items.Keys.Where(x => x.Id == item.Id).ToList();
+
+                item = items[items.Count - 1];
+
+                remaining = m_items[item].ReduceStack(remaining);
+
+                if(m_items[item].Stacks <= 0)
+                {
+                    m_items.Remove(item);
+                    items.Remove(item);
+
+                    Item newItem = m_items.Last(x => x.Key.Id == item.Id).Key;
+                    if(newItem != null)
                     {
-                        Debug.LogError("Stacks to be removed bigger than actual amount of items.");
-                        break;
+                        item = newItem;
                     }
-
-                    key = items.Keys.Where(x => x.ItemId == item.Id)
-                        .OrderByDescending(y => y.index).ToList()[0];
-                    remaining = items[key].ReduceStack(remaining);
+                    else
+                    {
+                        HandleAmountDeficiency(item, remaining);
+                    }
                 }
             }
-            else
+            if (remaining > 0)
             {
                 Debug.LogError("Stacks to be removed bigger than actual amount of items.");
             }
@@ -369,6 +402,39 @@ namespace KenScripts.Game.Items
             return -1;
         }
 
+        public int GetItemCount(string id)
+        {
+            int count = 0;
+            if (canHaveMultipleStacks)
+            {
+                IEnumerable<SlotSpace> spaces = m_items.Values.Where(x => x.Item.Id == id);
+                foreach (SlotSpace space in spaces)
+                {
+                    count += space.Stacks;
+                }
+            }
+            else
+            {
+                SlotSpace space = m_items.FirstOrDefault(x => x.Value.Item.Id == id).Value;
+                count = space.Stacks;
+            }
+            return count;
+        }
+
+        public SlotSpace GetSpace(Item key)
+        {
+            return m_items[key];
+        }
+
+        public IEnumerable<Item> GetItems()
+        {
+            return m_items.Keys;
+        }
+
+        public IEnumerable<SlotSpace> GetAllSlots()
+        {
+            return m_items.Values;
+        }
         public bool HasItemLimit(string id)
         {
             return m_data.ItemStackDatas.Any(x => x.Data.Id == id);
@@ -384,7 +450,7 @@ namespace KenScripts.Game.Items
             JObject json = new JObject();
             JArray inventory = new JArray();
             json["inventory-size"] = inventorySlotSize;
-            foreach (SlotSpace slot in items.Values)
+            foreach (SlotSpace slot in m_items.Values)
             {
                 JObject item = new JObject();
                 item["item-id"] = slot.Item.Id;
