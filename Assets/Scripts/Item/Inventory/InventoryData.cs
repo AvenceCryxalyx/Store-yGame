@@ -31,6 +31,9 @@ namespace KenScripts.Game.Items
         [Range(0, 10)] public int protectionLevel;
         public int SlotSpace;
 
+        [Tooltip("Items that are allowed to be stored in this inventory, if empty defaults to allow all items")]
+        public ItemType[] AllowableItems;
+
         [Tooltip("For Item Specific type limiting")]
         public ItemTypeStackData[] TypeStackDatas;
 

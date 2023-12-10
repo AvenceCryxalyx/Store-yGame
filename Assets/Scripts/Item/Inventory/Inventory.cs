@@ -84,7 +84,7 @@ namespace KenScripts.Game.Items
         protected int inventorySlotSize;
 
         [SerializeField]
-        ItemType[] allowableItems;
+        protected ItemType[] allowableItems;
 
         [SerializeField]
         protected bool canHaveMultipleStacks = true;
@@ -92,6 +92,7 @@ namespace KenScripts.Game.Items
         public void Initialize(InventoryData data)
         {
             m_data = Instantiate(data, transform);
+            allowableItems = data.AllowableItems;
         }
 
         public void IncreaseInventorySize(int value)

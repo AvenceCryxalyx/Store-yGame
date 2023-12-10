@@ -14,7 +14,7 @@ namespace StoreyGame.Items
 
         public string Id { get { return m_data.Id; } }
         public string Description { get { return m_data.Description; } }
-        public int Price { get { return m_data.Price; } }
+        public float Price { get { return m_data.Price; } }
         public ItemType Type { get { return m_data.Type; } }
 
         private ItemData m_data;

@@ -10,7 +10,7 @@ namespace StoreyGame.Items
     {
         public string Id;
         public string Name;
-        public int Price;
+        public float Price;
         public ItemType Type;
         [TextArea] public string Description;
     }

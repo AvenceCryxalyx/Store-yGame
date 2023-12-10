@@ -23,7 +23,7 @@ namespace StoreyGame.Animations
 
     public enum AnimationStates
     {
-        Idle,
+        Wait,
         Walk,
         Run
     }

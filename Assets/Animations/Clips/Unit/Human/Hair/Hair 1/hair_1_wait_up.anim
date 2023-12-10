@@ -20,7 +20,7 @@ AnimationClip:
   m_PPtrCurves:
   - curve:
     - time: 0
-      value: {fileID: -8460076487932304688, guid: 34eef3e5a0e413e4eb755b5b398aeaf7, type: 3}
+      value: {fileID: 5649662185010156357, guid: c3c11c6da2f41af458d3d3cdb27e936d, type: 3}
     attribute: m_Sprite
     path: Hair
     classID: 212
@@ -40,7 +40,7 @@ AnimationClip:
       customType: 23
       isPPtrCurve: 1
     pptrCurveMapping:
-    - {fileID: -8460076487932304688, guid: 34eef3e5a0e413e4eb755b5b398aeaf7, type: 3}
+    - {fileID: 5649662185010156357, guid: c3c11c6da2f41af458d3d3cdb27e936d, type: 3}
   m_AnimationClipSettings:
     serializedVersion: 2
     m_AdditiveReferencePoseClip: {fileID: 0}
